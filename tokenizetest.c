@@ -43,6 +43,8 @@ tokens* tokenize(char *command){
 	if(line[i] == '\n'){
         current[count + 1] = '\n';
         curTok->tok = current;
+
+        free(curTok);
         return head;
     }
 
@@ -82,11 +84,10 @@ tokens* tokenize(char *command){
 
     }
 
+    free(curTok);
     return head;
 
 }
-
-
 
 
 int main(int argc, char **argv){
@@ -100,8 +101,9 @@ int main(int argc, char **argv){
     tokens *current = malloc(sizeof(tokens));
     current = tokenize(command);
     
-    while(current->next != NULL){
+    while(current != NULL){
         printf("%s\n", current->tok);
+        current = current->next;
     }
 
     return EXIT_SUCCESS;
