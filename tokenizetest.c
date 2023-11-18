@@ -16,7 +16,7 @@ typedef struct tokens
 
 // Returns 1 if passed argument is a valid character in a command 
 int is_valid(char c) {
-    return ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '*' || c == '.'|| c == '>' || c == '<' || c == '|' || c == '/');
+    return (strchr("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz*.<>|/", c) != NULL);
 }
 
 // tokenize gets passed the entire command entered
@@ -24,9 +24,6 @@ int is_valid(char c) {
 tokens* tokenize(char *command){
 
     int len = strlen(command);
-    char line[len + 1];
-    strcpy(line, command);
-
 
     tokens *head = malloc(sizeof(tokens));
     tokens *curTok = head;
@@ -40,15 +37,15 @@ tokens* tokenize(char *command){
     // returns the head of the linked list of tokens
     for(int i = 0; i < len; i++){
 	
-	if(line[i] == '\n'){
+	if(command[i] == '\n'){
         current[count + 1] = '\n';
         curTok->tok = current;
-
+        free(current);
         free(curTok);
         return head;
     }
 
-        if(line[i] == ' ' && i != 0){
+        if(command[i] == ' ' && i != 0){
             
             /*if(curTok = head){
                 head->tok = current;
@@ -59,31 +56,30 @@ tokens* tokenize(char *command){
             
             current[count + 1] = '\n';
             curTok->tok = current;
-            current[count + 1] = 'a';
             nextNew = 1; 
             count = 0;
         } 
 
-        if(is_valid(line[i])){
+        if(is_valid(command[i])){
 
             if(count >= TOKENSIZE){
-                current = realloc(current, sizeof(current) * 2);
+                current = realloc(current, sizeof(char) * (count * 2));
             }
 
             if(nextNew){
                 curTok->next = malloc(sizeof(tokens));
-                curTok = curTok->next;
+                curTok->next->next = NULL;
 
-                count = 0;
                 nextNew = 0;
             }
 
-            current[count] = line[i];
+            current[count] = command[i];
             count++;
         }
 
     }
 
+    free(current);
     free(curTok);
     return head;
 
@@ -102,7 +98,7 @@ int main(int argc, char **argv){
     current = tokenize(command);
     
     while(current != NULL){
-        printf("%s\n", current->tok);
+        printf("%c\n", current->tok);
         current = current->next;
     }
 
