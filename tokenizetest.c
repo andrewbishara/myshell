@@ -39,21 +39,20 @@ tokens* tokenize(char *command){
 	
 	if(command[i] == '\n'){
         current[count + 1] = '\n';
-        curTok->tok = current;
+        curTok->tok = strdup(current);
         free(current);
-        free(curTok);
+
+        tokens* temp = head;
+        while (temp != NULL) {
+            tokens* next = temp->next;
+            free(temp->tok);
+            free(temp);
+            temp = next;
+        }
         return head;
     }
 
         if(command[i] == ' ' && i != 0){
-            
-            /*if(curTok = head){
-                head->tok = current;
-            } else{
-                curTok = malloc(sizeof(tokens));
-                curTok->tok = current;
-            }*/
-            
             current[count + 1] = '\n';
             curTok->tok = current;
             nextNew = 1; 
@@ -79,8 +78,15 @@ tokens* tokenize(char *command){
 
     }
 
-    free(current);
-    free(curTok);
+    
+    tokens* temp = head;
+    while (temp != NULL) {
+        tokens* next = temp->next;
+        free(temp->tok);
+        free(temp);            
+        temp = next;
+    }
+    
     return head;
 
 }
@@ -98,7 +104,7 @@ int main(int argc, char **argv){
     current = tokenize(command);
     
     while(current != NULL){
-        printf("%c\n", current->tok);
+        printf("%s\n", current->tok);
         current = current->next;
     }
 
