@@ -48,10 +48,12 @@ tokens* tokenize(char *command){
                 curTok = malloc(sizeof(tokens));
                 curTok->tok = current;
             }*/
-
+            
+            current[count + 1] = '\n';
             curTok->tok = current;
+            current[count + 1] = 'a';
             nextNew = 1; 
-            current = realloc(current, TOKENSIZE);
+            count = 0;
         } 
 
         if(is_valid(line[i])){
@@ -64,6 +66,7 @@ tokens* tokenize(char *command){
                 curTok->next = malloc(sizeof(tokens));
                 curTok = curTok->next;
 
+                count = 0;
                 nextNew = 0;
             }
 
