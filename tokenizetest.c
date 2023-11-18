@@ -24,12 +24,12 @@ int is_valid(char c) {
 tokens* tokenize(char *command){
 
     int len = strlen(command);
-    char l[len];
-    char *line = &l;
-    line = *command;
+    char line[len];
+    strcpy(line, command);
+
 
     tokens *head = malloc(sizeof(tokens));
-    tokens *curTok = malloc(sizeof(tokens));
+    tokens *curTok = head;
     
     char *current = malloc(TOKENSIZE);
     int count = 0;
@@ -40,17 +40,16 @@ tokens* tokenize(char *command){
     // returns the head of the linked list of tokens
     for(int i = 0; i < len; i++){
 
-        if(line[i] == '\n' && i != 0)
-            return head;
-
-        if(line[i] == ' ' && i != 0){
-            if(head->tok == NULL){
-                head->tok = current;
-            }
-            else{
-                curTok->tok = current;
-            }
+        if((line[i] == ' ' || line[i] == '\n') && i != 0){
             
+            /*if(curTok = head){
+                head->tok = current;
+            } else{
+                curTok = malloc(sizeof(tokens));
+                curTok->tok = current;
+            }*/
+
+            curTok->tok = current;
             nextNew = 1; 
             current = NULL;
         } 
