@@ -13,6 +13,19 @@ typedef struct tokens
     struct tokens *next;
 } tokens;
 
+// duplicates string
+char *my_strdup(const char *s) {
+    if (s == NULL) {
+        return NULL;
+    }
+    char *d = malloc(strlen(s) + 1);
+    if (d == NULL) {
+        return NULL;
+    }
+    strcpy(d, s);
+    return d;
+}
+
 
 // Returns 1 if passed argument is a valid character in a command 
 int is_valid(char c) {
@@ -39,7 +52,7 @@ tokens* tokenize(char *command){
 	
 	if(command[i] == '\n'){
         current[count + 1] = '\n';
-        curTok->tok = strdup(current);
+        curTok->tok = my_strdup(current);
         free(current);
 
         tokens* temp = head;
