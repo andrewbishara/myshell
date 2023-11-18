@@ -39,8 +39,14 @@ tokens* tokenize(char *command){
     // for every character in command
     // returns the head of the linked list of tokens
     for(int i = 0; i < len; i++){
+	
+	if(line[i] == '\n'){
+        current[count + 1] = '\n';
+        curTok->tok = current;
+        return head;
+    }
 
-        if((line[i] == ' ' || line[i] == '\n') && i != 0){
+        if(line[i] == ' ' && i != 0){
             
             /*if(curTok = head){
                 head->tok = current;
