@@ -3,6 +3,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#define DEBUG 1
+
 #define TOKENSIZE 8
 
 typedef struct tokens
@@ -32,6 +34,7 @@ tokens* tokenize(char *command){
     int count = 0;
     int nextNew;
 
+    if(DEBUG) printf("%d", len);
     // for every character in command
     // returns the head of the linked list of tokens
     for(int i = 0; i < len; i++){
@@ -79,16 +82,17 @@ tokens* tokenize(char *command){
 
 int main(int argc, char **argv){
 
-    char *command = NULL;
+    char com[128] = NULL;
+    char *command = com;
 
     printf("mysh> ");
     fgets(command, 128, stdin);
 
     tokens *current = malloc(sizeof(tokens));
-    current = tokenize(current);
+    current = tokenize(command);
     
     while(current->next != NULL){
-        printf("%p\n", (void*) current->tok);
+        printf("%s\n", (void*) current->tok);
     }
 
     return EXIT_SUCCESS;
