@@ -5,10 +5,10 @@
 
 #define TOKENSIZE 8
 
-typedef struct tokens
+typedef tokens
 {
     char *tok;
-    struct token *next;
+    struct tokens *next;
 } tokens;
 
 
@@ -21,14 +21,14 @@ int is_valid(char c) {
 // Split command into individual tokens, fills them into a token struct 
 tokens* tokenize(char *command){
 
-    int len = strlen(*command);
+    int len = strlen((const) *command);
     char line[len];
     line[0] = *command;
 
     tokens *head;
     tokens *curTok = head;
     
-    char *current[TOKENSIZE] = malloc(TOKENSIZE);
+    char *current = malloc(TOKENSIZE);
     int count = 0;
     int nextNew;
 
@@ -41,14 +41,14 @@ tokens* tokenize(char *command){
 
         if(line[i] == ' ' && i != 0){
             if(head->tok == NULL){
-                head->tok = current;
+                head->tok = &current;
             }
             else{
-                curTok->tok = current;
+                curTok->tok = &current;
             }
             
             nextNew = 1; 
-            current == NULL;
+            current = NULL;
         } 
 
         if(is_valid(line[i])){
@@ -74,17 +74,18 @@ tokens* tokenize(char *command){
 
 
 
-void main(int argc, char **argv){
+int main(int argc, char **argv){
 
     char *command;
 
     printf("mysh> ");
-    gets(*command);
+    fgets(*command, 128, stdin);
 
     tokens *current = tokenize(command);
     
     while(current->next != NULL){
-        printf("%c\n", current->tok);
+        printf("%p\n", (void*) current->tok);
     }
 
+    return EXIT_SUCCESS;
 }
