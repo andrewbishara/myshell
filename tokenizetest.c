@@ -70,18 +70,22 @@ tokens* tokenize(char *command){
 
     }
 
+    return head;
+
 }
+
 
 
 
 int main(int argc, char **argv){
 
-    char *command;
+    char *command = NULL;
 
     printf("mysh> ");
     fgets(command, 128, stdin);
 
-    tokens *current = tokenize(command);
+    tokens *current = malloc(sizeof(tokens));
+    current = tokenize(current);
     
     while(current->next != NULL){
         printf("%p\n", (void*) current->tok);
