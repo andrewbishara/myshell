@@ -24,7 +24,7 @@ int is_valid(char c) {
 tokens* tokenize(char *command){
 
     int len = strlen(command);
-    char line[len];
+    char line[len + 1];
     strcpy(line, command);
 
 
@@ -51,7 +51,7 @@ tokens* tokenize(char *command){
 
             curTok->tok = current;
             nextNew = 1; 
-            current = NULL;
+            current = realloc(current, TOKENSIZE);
         } 
 
         if(is_valid(line[i])){
