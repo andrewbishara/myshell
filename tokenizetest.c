@@ -24,8 +24,9 @@ int is_valid(char c) {
 tokens* tokenize(char *command){
 
     int len = strlen(command);
-    char line[len];
-    line[0] = *command;
+    char l[len];
+    char *line = &l;
+    line = *command;
 
     tokens *head = malloc(sizeof(tokens));
     tokens *curTok = malloc(sizeof(tokens));
@@ -82,7 +83,7 @@ tokens* tokenize(char *command){
 
 int main(int argc, char **argv){
 
-    char com[128] = NULL;
+    char com[128];
     char *command = com;
 
     printf("mysh> ");
@@ -92,7 +93,7 @@ int main(int argc, char **argv){
     current = tokenize(command);
     
     while(current->next != NULL){
-        printf("%s\n", (void*) current->tok);
+        printf("%s\n", current->tok);
     }
 
     return EXIT_SUCCESS;
