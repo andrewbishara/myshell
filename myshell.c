@@ -285,6 +285,8 @@ void executeExternalCommand(char *tokens[], int numTokens) {
         return;
     }
 
+    printf("Executing command: %s\n", fullPath); // Debug print
+
     pid_t pid = fork();
     if (pid == -1) {
         perror("fork");
