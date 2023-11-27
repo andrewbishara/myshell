@@ -3,10 +3,23 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/wait.h>
 
 
 #define MAX_COMMAND_LENGTH 1024
 #define MAX_TOKENS 100
+
+// Function prototypes
+void executeBuiltIn(char *tokens[], int numTokens);
+void executeWhich(const char *command);
+void handleRedirectionAndExecute(char *tokens[], int numTokens);
+int createAndExecutePipe(char *leftCommand[], char *rightCommand[]);
+void processCommand(char *command);
+void interactiveMode();
+void batchMode(const char *filename);
+void tokenize(char *command, char *tokens[], int *numTokens);
+int findCommandPath(char *command, char *fullPath);
+void executeExternalCommand(char *tokens[], int numTokens);
 
 void tokenize(char *command, char *tokens[], int *numTokens) {
     char *token;
