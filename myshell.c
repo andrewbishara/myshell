@@ -160,7 +160,7 @@ void handleRedirectionAndExecute(char *tokens[], int numTokens) {
         // Child process
         
         if (inRedirect != -1) {
-            if(DEBUG) printf("In child process, opening %s", tokens[inRedirect]);
+            if(DEBUG) printf("In child process, opening %s\n", tokens[inRedirect]);
             int fdIn = open(tokens[inRedirect], O_RDONLY);
             if (fdIn == -1) {
                 perror("open");
@@ -171,7 +171,7 @@ void handleRedirectionAndExecute(char *tokens[], int numTokens) {
         }
 
         if (outRedirect != -1) {
-            if(DEBUG) printf("In child process, opening %s", tokens[outRedirect]);
+            if(DEBUG) printf("In child process, opening %s\n", tokens[outRedirect]);
             int fdOut = open(tokens[outRedirect], O_WRONLY | O_CREAT | O_TRUNC, 0644);
             if (fdOut == -1) {
                 perror("open");
@@ -181,7 +181,7 @@ void handleRedirectionAndExecute(char *tokens[], int numTokens) {
             close(fdOut);
         }
 
-        if(DEBUG) printf("Executing %s", command[0]);
+        if(DEBUG) printf("Executing %s\n", command[0]);
         execv(command[0], command);
         perror("execv");
         exit(EXIT_FAILURE);
