@@ -36,7 +36,7 @@ void tokenize(char *command, char *tokens[], int *numTokens) {
 }
 
 void processCommand(char *command) {
-    if(DEBUG) printf("Beginning process command, command = %s", *command);
+    if(DEBUG) printf("Beginning process command, command = %s", command);
     char *tokens[MAX_TOKENS];
     int numTokens;
 
@@ -81,7 +81,7 @@ void processCommand(char *command) {
 
 
 int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
-    if(DEBUG) printf("Beginning Pipe creation, leftCommand = %s \trightCommand = %s", *leftCommand, *rightCommand);
+    if(DEBUG) printf("Beginning Pipe creation, leftCommand = %s \trightCommand = %s", leftCommand, rightCommand);
     int pipefd[2];
     if (pipe(pipefd) == -1) {
         perror("pipe");
@@ -244,7 +244,7 @@ void executeBuiltIn(char *tokens[], int numTokens) {
 }
 
 void executeWhich(const char *command) {
-    if(DEBUG) printf("Beginning executeWhich, command = %s", *command);
+    if(DEBUG) printf("Beginning executeWhich, command = %s", command);
     char *directories[] = {"/usr/local/bin", "/usr/bin", "/bin"};
     char path[MAX_COMMAND_LENGTH];
     int found = 0;
@@ -264,7 +264,7 @@ void executeWhich(const char *command) {
 }
 
 int findCommandPath(char *command, char *fullPath) {
-    if(DEBUG) printf("Beginning findCommandPath, command = %s, fullPath = %s", *command, *fullPath);
+    if(DEBUG) printf("Beginning findCommandPath, command = %s, fullPath = %s", command, fullPath);
     char *directories[] = {"/usr/local/bin", "/usr/bin", "/bin"};
     int found = 0;
 
