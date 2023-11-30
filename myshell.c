@@ -36,7 +36,7 @@ void tokenize(char *command, char *tokens[], int *numTokens) {
 }
 
 void processCommand(char *command) {
-    if(DEBUG) printf("Beginning process command, command = %s", command);
+    if(DEBUG) printf("Beginning process command, command = %s\n", command);
     char *tokens[MAX_TOKENS];
     int numTokens;
 
@@ -81,7 +81,7 @@ void processCommand(char *command) {
 
 
 int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
-    if(DEBUG) printf("Beginning Pipe creation");
+    if(DEBUG) printf("Beginning Pipe creation\n");
     int pipefd[2];
     if (pipe(pipefd) == -1) {
         perror("pipe");
@@ -132,7 +132,7 @@ int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
 }
 
 void handleRedirectionAndExecute(char *tokens[], int numTokens) {
-    if(DEBUG) printf("Beginnging handleRedirection, numTokens = %d", numTokens);
+    if(DEBUG) printf("Beginnging handleRedirection, numTokens = %d\n", numTokens);
     int inRedirect = -1, outRedirect = -1; // Indices of redirection tokens if found
     char *command[MAX_TOKENS];
     int commandLength = 0;
@@ -220,7 +220,7 @@ void batchMode(const char *filename) {
 }
 
 void executeBuiltIn(char *tokens[], int numTokens) {
-    if(DEBUG) printf("Beginning executeBuiltIn, numTokens = %d", numTokens);
+    if(DEBUG) printf("Beginning executeBuiltIn, numTokens = %d\n", numTokens);
     if (strcmp(tokens[0], "cd") == 0) {
         if (numTokens != 2) {
             fprintf(stderr, "cd: wrong number of arguments\n");
@@ -244,7 +244,7 @@ void executeBuiltIn(char *tokens[], int numTokens) {
 }
 
 void executeWhich(const char *command) {
-    if(DEBUG) printf("Beginning executeWhich, command = %s", command);
+    if(DEBUG) printf("Beginning executeWhich, command = %s\n", command);
     char *directories[] = {"/usr/local/bin", "/usr/bin", "/bin"};
     char path[MAX_COMMAND_LENGTH];
     int found = 0;
@@ -264,7 +264,7 @@ void executeWhich(const char *command) {
 }
 
 int findCommandPath(char *command, char *fullPath) {
-    if(DEBUG) printf("Beginning findCommandPath, command = %s, fullPath = %s", command, fullPath);
+    if(DEBUG) printf("Beginning findCommandPath, command = %s, fullPath = %s\n", command, fullPath);
     char *directories[] = {"/usr/local/bin", "/usr/bin", "/bin"};
     int found = 0;
 
@@ -286,7 +286,7 @@ int findCommandPath(char *command, char *fullPath) {
 }
 
 void executeExternalCommand(char *tokens[], int numTokens) {
-    if(DEBUG) printf("Beginning executeExternalCommand, numTokens = %d", numTokens);
+    if(DEBUG) printf("Beginning executeExternalCommand, numTokens = %d\n", numTokens);
     char fullPath[MAX_COMMAND_LENGTH];
     if (!findCommandPath(tokens[0], fullPath)) {
         fprintf(stderr, "%s: command not found\n", tokens[0]);
