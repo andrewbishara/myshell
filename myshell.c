@@ -81,7 +81,7 @@ void processCommand(char *command) {
 
 
 int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
-    if(DEBUG) printf("Beginning Pipe creation, leftCommand = %s \trightCommand = %s", leftCommand, rightCommand);
+    if(DEBUG) printf("Beginning Pipe creation");
     int pipefd[2];
     if (pipe(pipefd) == -1) {
         perror("pipe");
