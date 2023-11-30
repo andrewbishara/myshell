@@ -181,11 +181,14 @@ void handleRedirectionAndExecute(char *tokens[], int numTokens) {
             close(fdOut);
         }
 
-        char *fullPath[MAX_COMMAND_LENGTH];
-        *fullPath = findCommandPath(command[0], *fullPath);
+        char fullPath[MAX_COMMAND_LENGTH];
+        if (!findCommandPath(tokens[0], fullPath)) {
+            fprintf(stderr, "%s: command not found\n", tokens[0]);
+            return;
+        }
 
-        if(DEBUG) printf("Executing %s\n", *fullPath);
-        execv(*fullPath, command);
+        if(DEBUG) printf("Executing %s\n", fullPath);
+        execv(fullPath, command);
         perror("execv");
         exit(EXIT_FAILURE);
     } else {
