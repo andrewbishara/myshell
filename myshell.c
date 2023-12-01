@@ -48,6 +48,12 @@ void processCommand(char *command) {
 
 
     if (numTokens == 0) return; // Empty command
+    
+    // Check for exit command
+    if (strcmp(tokens[0], "exit") == 0) {
+        printf("Exiting...\n");
+        exit(EXIT_SUCCESS); // Exit the program
+    }
 
     // First check for pipes
     char *leftCommand[MAX_TOKENS];
@@ -355,8 +361,11 @@ void expandWildcards(char *tokens[], int *numTokens) {
     }
     *numTokens = newNumTokens;
 
-    globfree(&globbuf);
+    //globfree(&globbuf);
 }
+
+
+
 
 char* custom_strdup(const char* s) {
     char* new_str = malloc(strlen(s) + 1); // +1 for the null terminator
