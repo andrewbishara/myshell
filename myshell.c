@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include <glob.h>
 
+#define _POSIX_C_SOURCE 200809L
 #define MAX_COMMAND_LENGTH 1024
 #define MAX_TOKENS 100
 #define DEBUG 0
@@ -22,6 +23,7 @@ void tokenize(char *command, char *tokens[], int *numTokens);
 int findCommandPath(char *command, char *fullPath);
 void executeExternalCommand(char *tokens[], int numTokens);
 void expandWildcards(char *tokens[], int *numTokens);
+char* custom_strdup(const char* s);
 
 void tokenize(char *command, char *tokens[], int *numTokens) {
     char *token;
@@ -337,14 +339,14 @@ void expandWildcards(char *tokens[], int *numTokens) {
         if (strchr(tokens[i], '*') != NULL) { // Check if token contains a wildcard
             glob(tokens[i], (newNumTokens == 0 ? GLOB_NOCHECK : GLOB_APPEND | GLOB_NOCHECK), NULL, &globbuf);
             if (globbuf.gl_pathc == 0) { // No matches found
-                newTokens[newNumTokens++] = strdup(tokens[i]); // Keep the original token
+                newTokens[newNumTokens++] = custom_strdup(tokens[i]); // Keep the original token
             } else {
                 for (j = 0; j < globbuf.gl_pathc; j++) {
-                    newTokens[newNumTokens++] = strdup(globbuf.gl_pathv[j]);
+                    newTokens[newNumTokens++] = custom_strdup(globbuf.gl_pathv[j]);
                 }
             }
         } else {
-            newTokens[newNumTokens++] = strdup(tokens[i]);
+            newTokens[newNumTokens++] = custom_strdup(tokens[i]);
         }
     }
 
@@ -355,6 +357,15 @@ void expandWildcards(char *tokens[], int *numTokens) {
 
     globfree(&globbuf);
 }
+
+char* custom_strdup(const char* s) {
+    char* new_str = malloc(strlen(s) + 1); // +1 for the null terminator
+    if (new_str) {
+        strcpy(new_str, s);
+    }
+    return new_str;
+}
+
 
 int main(int argc, char *argv[]) {
     if (argc == 2) {
