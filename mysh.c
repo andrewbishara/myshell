@@ -255,6 +255,9 @@ void executeBuiltIn(char *tokens[], int numTokens) {
         } else {
             executeWhich(tokens[1]);
         }
+    } else if (strcmp(tokens[0], "exit") == 0) {
+        printf("Exiting shell");
+        exit(0);
     }
 }
 
