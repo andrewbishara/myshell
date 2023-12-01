@@ -21,6 +21,7 @@ void batchMode(const char *filename);
 void tokenize(char *command, char *tokens[], int *numTokens);
 int findCommandPath(char *command, char *fullPath);
 void executeExternalCommand(char *tokens[], int numTokens);
+void expandWildcards(char *tokens[], int *numTokens);
 
 void tokenize(char *command, char *tokens[], int *numTokens) {
     char *token;
@@ -41,6 +42,8 @@ void processCommand(char *command) {
     int numTokens;
 
     tokenize(command, tokens, &numTokens);
+    expandWildcards(tokens, &numTokens); // Expand wildcards in tokens
+
 
     if (numTokens == 0) return; // Empty command
 
@@ -181,8 +184,14 @@ void handleRedirectionAndExecute(char *tokens[], int numTokens) {
             close(fdOut);
         }
 
-        if(DEBUG) printf("Executing %s\n", command[0]);
-        execv(command[0], command);
+        char fullPath[MAX_COMMAND_LENGTH];
+        if (!findCommandPath(tokens[0], fullPath)) {
+            fprintf(stderr, "%s: command not found\n", tokens[0]);
+            return;
+        }
+
+        if(DEBUG) printf("Executing %s\n", fullPath);
+        execv(fullPath, command);
         perror("execv");
         exit(EXIT_FAILURE);
     } else {
@@ -318,6 +327,34 @@ void executeExternalCommand(char *tokens[], int numTokens) {
     }
 }
 
+void expandWildcards(char *tokens[], int *numTokens) {
+    glob_t globbuf;
+    int i, j, k;
+    int newNumTokens = 0;
+    char *newTokens[MAX_TOKENS];
+
+    for (i = 0; i < *numTokens; i++) {
+        if (strchr(tokens[i], '*') != NULL) { // Check if token contains a wildcard
+            glob(tokens[i], (newNumTokens == 0 ? GLOB_NOCHECK : GLOB_APPEND | GLOB_NOCHECK), NULL, &globbuf);
+            if (globbuf.gl_pathc == 0) { // No matches found
+                newTokens[newNumTokens++] = strdup(tokens[i]); // Keep the original token
+            } else {
+                for (j = 0; j < globbuf.gl_pathc; j++) {
+                    newTokens[newNumTokens++] = strdup(globbuf.gl_pathv[j]);
+                }
+            }
+        } else {
+            newTokens[newNumTokens++] = strdup(tokens[i]);
+        }
+    }
+
+    for (k = 0; k < newNumTokens; k++) {
+        tokens[k] = newTokens[k];
+    }
+    *numTokens = newNumTokens;
+
+    globfree(&globbuf);
+}
 
 int main(int argc, char *argv[]) {
     if (argc == 2) {
