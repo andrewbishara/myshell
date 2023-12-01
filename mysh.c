@@ -76,7 +76,7 @@ void processCommand(char *command) {
     }
 
     // If no pipe is found, handle as built-in or external command
-    if (strcmp(tokens[0], "cd") == 0 || strcmp(tokens[0], "pwd") == 0 || strcmp(tokens[0], "which") == 0) {
+    if (strcmp(tokens[0], "cd") == 0 || strcmp(tokens[0], "pwd") == 0 || strcmp(tokens[0], "which") || strcmp(tokens[0], "exit" ) == 0) {
         executeBuiltIn(tokens, numTokens);
     } else {
         // If not a built-in command, handle redirection and execute
