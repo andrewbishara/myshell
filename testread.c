@@ -1,20 +1,18 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
 
-int main(int argc, char *argv[]) {
-    char buffer[10];
-    read(STDIN_FILENO, buffer, 10);
-    int root;
+#define BUFFER_SIZE 256
 
-    for (int i = 0; i < 10; i++) {
-        if (buffer[i] != 0) {
-            root = buffer[i] / buffer[i];
-            printf("The root of %d is %d\n", i, root);
-        } else {
-            printf("Cannot compute the root for %d (division by zero)\n", i);
-        }
+int main() {
+    char buffer[BUFFER_SIZE];
+
+    printf("Program 2 is waiting for input from stdin...\n");
+
+    // Read from stdin until EOF
+    while (fgets(buffer, BUFFER_SIZE, stdin) != NULL) {
+        printf("Program 2 received: %s", buffer);
     }
 
-    return EXIT_SUCCESS;
+    printf("End of Program 2.\n");
+
+    return 0;
 }

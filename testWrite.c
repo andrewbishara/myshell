@@ -1,13 +1,9 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
 
-int main(int argc, char *argv[]){
-    int square;
-    for(int i = 0; i < 10; i++){
-        square = i * i;
-        printf("%d", square);
-    }
+int main() {
+    printf("This is a message from Program 1.\n");
+    printf("Hello, world!\n");
+    printf("End of Program 1.\n");
 
-    return(EXIT_SUCCESS);
+    return 0;
 }
