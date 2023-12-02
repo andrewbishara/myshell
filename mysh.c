@@ -11,6 +11,8 @@
 #define MAX_TOKENS 100
 #define DEBUG 0
 
+int isDynamicToken[MAX_TOKENS];
+
 // Function prototypes
 void executeBuiltIn(char *tokens[], int numTokens);
 void executeWhich(const char *command);
@@ -32,6 +34,7 @@ void tokenize(char *command, char *tokens[], int *numTokens) {
     token = strtok(command, " \t\n");
     while (token != NULL && *numTokens < MAX_TOKENS - 1) {
         tokens[*numTokens] = token;
+        isDynamicToken[*numTokens] = 0;  // Mark as not dynamically allocated
         (*numTokens)++;
         token = strtok(NULL, " \t\n");
     }
@@ -39,15 +42,36 @@ void tokenize(char *command, char *tokens[], int *numTokens) {
 }
 
 void processCommand(char *command) {
-    if(DEBUG) printf("Beginning process command, command = %s\n", command);
+    static char *prevTokens[MAX_TOKENS] = {NULL}; // To track previous tokens
+    static int prevNumTokens = 0; // Number of tokens in previous command
+
+    // Free memory from the previous command
+    for (int i = 0; i < prevNumTokens; ++i) {
+        if (prevTokens[i] != NULL) {
+            free(prevTokens[i]);
+            prevTokens[i] = NULL;
+        }
+    }
+
     char *tokens[MAX_TOKENS];
     int numTokens;
 
+    // Tokenize the input command
     tokenize(command, tokens, &numTokens);
-    expandWildcards(tokens, &numTokens); // Expand wildcards in tokens
 
+    // Handle the case of an empty command
+    if (numTokens == 0) {
+        return; // Nothing to do for an empty command
+    }
 
-    if (numTokens == 0) return; // Empty command
+    // Check for the exit command
+    if (strcmp(tokens[0], "exit") == 0) {
+        printf("Exiting...\n");
+        exit(EXIT_SUCCESS); // Exit the program
+    }
+
+    // Expand wildcards in tokens
+    expandWildcards(tokens, &numTokens); 
 
     // First check for pipes
     char *leftCommand[MAX_TOKENS];
@@ -76,12 +100,16 @@ void processCommand(char *command) {
     }
 
     // If no pipe is found, handle as built-in or external command
-    if (strcmp(tokens[0], "cd") == 0 || strcmp(tokens[0], "pwd") == 0 || strcmp(tokens[0], "which") || strcmp(tokens[0], "exit" ) == 0) {
+    if (strcmp(tokens[0], "cd") == 0 || strcmp(tokens[0], "pwd") == 0 || strcmp(tokens[0], "which") == 0) {
         executeBuiltIn(tokens, numTokens);
     } else {
         // If not a built-in command, handle redirection and execute
         handleRedirectionAndExecute(tokens, numTokens);
     }
+    
+    // Save tokens for the next command
+    memcpy(prevTokens, tokens, sizeof(tokens[0]) * numTokens);
+    prevNumTokens = numTokens;
 }
 
 
@@ -105,6 +133,11 @@ int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
         dup2(pipefd[1], STDOUT_FILENO); // Redirect stdout to write end of pipe
         close(pipefd[1]);
 
+        char fullPath[MAX_COMMAND_LENGTH];
+        if (!findCommandPath(leftCommand[0], fullPath)) {
+            fprintf(stderr, "%s: command not found\n", leftCommand[0]);
+            return;
+        }
         execv(leftCommand[0], leftCommand);
         perror("execv");
         exit(EXIT_FAILURE);
@@ -122,6 +155,11 @@ int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
         dup2(pipefd[0], STDIN_FILENO); // Redirect stdin to read end of pipe
         close(pipefd[0]);
 
+        char fullPath[MAX_COMMAND_LENGTH];
+        if (!findCommandPath(rightCommand[0], fullPath)) {
+            fprintf(stderr, "%s: command not found\n", rightCommand[0]);
+            return;
+        }
         execv(rightCommand[0], rightCommand);
         perror("execv");
         exit(EXIT_FAILURE);
@@ -255,9 +293,6 @@ void executeBuiltIn(char *tokens[], int numTokens) {
         } else {
             executeWhich(tokens[1]);
         }
-    } else if (strcmp(tokens[0], "exit") == 0) {
-        printf("Exiting shell");
-        exit(0);
     }
 }
 
@@ -334,15 +369,23 @@ void executeExternalCommand(char *tokens[], int numTokens) {
 
 void expandWildcards(char *tokens[], int *numTokens) {
     glob_t globbuf;
-    int i, j, k;
-    int newNumTokens = 0;
+    int i, j;
     char *newTokens[MAX_TOKENS];
+    int newNumTokens = 0;
+
+    globbuf.gl_pathc = 0;
+    globbuf.gl_pathv = NULL;
+    globbuf.gl_offs = 0;
 
     for (i = 0; i < *numTokens; i++) {
-        if (strchr(tokens[i], '*') != NULL) { // Check if token contains a wildcard
-            glob(tokens[i], (newNumTokens == 0 ? GLOB_NOCHECK : GLOB_APPEND | GLOB_NOCHECK), NULL, &globbuf);
-            if (globbuf.gl_pathc == 0) { // No matches found
-                newTokens[newNumTokens++] = custom_strdup(tokens[i]); // Keep the original token
+        if (strchr(tokens[i], '*') != NULL) {
+            int flags = (newNumTokens == 0 ? GLOB_NOCHECK : GLOB_APPEND | GLOB_NOCHECK);
+            if (glob(tokens[i], flags, NULL, &globbuf) != 0) {
+                continue;
+            }
+
+            if (globbuf.gl_pathc == 0) {
+                newTokens[newNumTokens++] = custom_strdup(tokens[i]);
             } else {
                 for (j = 0; j < globbuf.gl_pathc; j++) {
                     newTokens[newNumTokens++] = custom_strdup(globbuf.gl_pathv[j]);
@@ -353,13 +396,17 @@ void expandWildcards(char *tokens[], int *numTokens) {
         }
     }
 
-    for (k = 0; k < newNumTokens; k++) {
-        tokens[k] = newTokens[k];
+    // Replace original tokens with expanded tokens
+    for (i = 0; i < newNumTokens; i++) {
+        tokens[i] = newTokens[i];
     }
     *numTokens = newNumTokens;
 
-    //globfree(&globbuf);
+    globfree(&globbuf);
 }
+
+
+
 
 char* custom_strdup(const char* s) {
     char* new_str = malloc(strlen(s) + 1); // +1 for the null terminator
