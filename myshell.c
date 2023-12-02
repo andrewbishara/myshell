@@ -388,6 +388,11 @@ void expandWildcards(char *tokens[], int *numTokens) {
     globfree(&globbuf);
 }
 
+
+
+
+
+
 char* custom_strdup(const char* s) {
     char* new_str = malloc(strlen(s) + 1); // +1 for the null terminator
     if (new_str) {
