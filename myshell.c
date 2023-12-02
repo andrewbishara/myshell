@@ -343,14 +343,16 @@ void expandWildcards(char *tokens[], int *numTokens) {
     int i, j, k;
     int newNumTokens = 0;
     char *newTokens[MAX_TOKENS];
+    int newIsDynamicToken[MAX_TOKENS] = {0}; // To track dynamically allocated tokens in newTokens
 
-    // Initialize globbuf
+    // Initialize the glob structure
     globbuf.gl_pathc = 0;
     globbuf.gl_pathv = NULL;
     globbuf.gl_offs = 0;
 
     for (i = 0; i < *numTokens; i++) {
-        if (strchr(tokens[i], '*') != NULL) { // Check if token contains a wildcard
+        if (strchr(tokens[i], '*') != NULL) {
+            // Wildcard expansion
             int flags = (newNumTokens == 0 ? GLOB_NOCHECK : GLOB_APPEND | GLOB_NOCHECK);
             if (glob(tokens[i], flags, NULL, &globbuf) != 0) {
                 continue; // Skip on glob error
@@ -358,40 +360,39 @@ void expandWildcards(char *tokens[], int *numTokens) {
 
             if (globbuf.gl_pathc == 0) { // No matches found
                 newTokens[newNumTokens] = custom_strdup(tokens[i]);
-                isDynamicToken[newNumTokens] = 1; // Mark as dynamically allocated
+                newIsDynamicToken[newNumTokens] = 1; // Mark as dynamically allocated
                 newNumTokens++;
             } else {
                 for (j = 0; j < globbuf.gl_pathc; j++) {
                     newTokens[newNumTokens] = custom_strdup(globbuf.gl_pathv[j]);
-                    isDynamicToken[newNumTokens] = 1; // Mark as dynamically allocated
+                    newIsDynamicToken[newNumTokens] = 1; // Mark as dynamically allocated
                     newNumTokens++;
                 }
             }
         } else {
-            newTokens[newNumTokens] = tokens[i];
-            isDynamicToken[newNumTokens] = isDynamicToken[i]; // Preserve allocation status
+            // Copy the token as is
+            newTokens[newNumTokens] = custom_strdup(tokens[i]);
+            newIsDynamicToken[newNumTokens] = 1; // Mark as dynamically allocated
             newNumTokens++;
         }
 
-        // Free the original token only if it was dynamically allocated
+        // Free the original token if it was dynamically allocated
         if (isDynamicToken[i]) {
             free(tokens[i]);
         }
     }
 
-    // Replace original tokens with expanded tokens
+    // Update the tokens with new tokens
     for (k = 0; k < newNumTokens; k++) {
         tokens[k] = newTokens[k];
+        isDynamicToken[k] = newIsDynamicToken[k]; // Update dynamic token tracking
     }
+
+    // Update the number of tokens
     *numTokens = newNumTokens;
 
     globfree(&globbuf);
 }
-
-
-
-
-
 
 char* custom_strdup(const char* s) {
     char* new_str = malloc(strlen(s) + 1); // +1 for the null terminator
