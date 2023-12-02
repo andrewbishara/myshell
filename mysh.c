@@ -136,9 +136,10 @@ int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
         char fullPath[MAX_COMMAND_LENGTH];
         if (!findCommandPath(leftCommand[0], fullPath)) {
             fprintf(stderr, "%s: command not found\n", leftCommand[0]);
-            return;
+            return -1;
         }
-        execv(leftCommand[0], leftCommand);
+        if(DEBUG) printf("executing first child process, path is %s", fullPath);
+        execv(fullPath, leftCommand);
         perror("execv");
         exit(EXIT_FAILURE);
     }
@@ -158,9 +159,10 @@ int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
         char fullPath[MAX_COMMAND_LENGTH];
         if (!findCommandPath(rightCommand[0], fullPath)) {
             fprintf(stderr, "%s: command not found\n", rightCommand[0]);
-            return;
+            return -1;
         }
-        execv(rightCommand[0], rightCommand);
+        if(DEBUG) printf("executing second child process, path is %s", fullPath);
+        execv(fullPath, rightCommand);
         perror("execv");
         exit(EXIT_FAILURE);
     }
