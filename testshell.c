@@ -87,7 +87,7 @@ void processCommand(char *command) {
             shifted = 1;
             numTokens--;
         }else{
-            exit(EXIT_FAILURE);
+            return;
         }
     }
 
@@ -97,7 +97,7 @@ void processCommand(char *command) {
             shifted = 1;
             numTokens--;
         }else{
-            exit(EXIT_FAILURE);
+            return;
         }
     }
 
@@ -467,9 +467,10 @@ void freeDynamicTokens(char *tokens[]) {
     }
 }
 
-void shiftTokens(char *tokens[]){
+void shiftTokens(char *tokens[]){        
+    char *newTokens[MAX_TOKENS];
     for(int i = 0; i < MAX_TOKENS - 1; i++){
-        char *newTokens[MAX_TOKENS];
+
         if(DEBUG) printf("Previous token %s going into index %d", tokens[i+1], i);
         newTokens[i] = tokens[i+1];
     }
