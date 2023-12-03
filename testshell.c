@@ -28,7 +28,7 @@ void executeExternalCommand(char *tokens[], int numTokens);
 void expandWildcards(char *tokens[], int *numTokens);
 char* custom_strdup(const char* s);
 void freeDynamicTokens(char *tokens[]);
-void shiftTokens(char *tokens[], char *newTokens[]);
+void shiftTokens(char *tokens[]);
 
 void tokenize(char *command, char *tokens[], int *numTokens) {
     char *token;
@@ -57,7 +57,6 @@ void processCommand(char *command) {
     }
 
     char *tokens[MAX_TOKENS];
-    char *newTokens[MAX_TOKENS -1];
     int numTokens;
     memset(isDynamicToken, 0, sizeof(isDynamicToken)); // Reset dynamic token flags
 
@@ -84,8 +83,9 @@ void processCommand(char *command) {
     int shifted;
     if(strcmp(tokens[0], "then") == 0){
         if(lastExitStatus == EXIT_SUCCESS){
-            shiftTokens(tokens, newTokens);
+            shiftTokens(tokens);
             shifted = 1;
+            numTokens--;
         }else{
             exit(EXIT_FAILURE);
         }
@@ -93,18 +93,16 @@ void processCommand(char *command) {
 
     if(strcmp(tokens[0], "else") == 0){
         if(lastExitStatus != EXIT_SUCCESS){
-            shiftTokens(tokens, newTokens);
+            shiftTokens(tokens);
             shifted = 1;
+            numTokens--;
         }else{
             exit(EXIT_FAILURE);
         }
     }
 
     
-    if(shifted){
-        // Expand wildcards in tokens
-        expandWildcards(newTokens, &numTokens);
-    } else expandWildcards(tokens, &numTokens);
+    expandWildcards(tokens, &numTokens);
 
     // Check for pipes
     char *leftCommand[MAX_TOKENS];
@@ -469,13 +467,14 @@ void freeDynamicTokens(char *tokens[]) {
     }
 }
 
-void shiftTokens(char *tokens[], char *newTokens[]){
+void shiftTokens(char *tokens[]){
     for(int i = 0; i < MAX_TOKENS - 1; i++){
+        char *newTokens[MAX_TOKENS];
         if(DEBUG) printf("Previous token %s going into index %d", tokens[i+1], i);
         newTokens[i] = tokens[i+1];
     }
 
-    for(int j = 0; j < MAX_TOKENS - 1; j++){
+    for(int j = 0; j < MAX_TOKENS; j++){
         tokens[j] = newTokens[j];
     }
 
