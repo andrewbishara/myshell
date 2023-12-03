@@ -8,10 +8,10 @@
 
 #define _POSIX_C_SOURCE 200809L
 #define MAX_COMMAND_LENGTH 1024
+#define MAX_TOKENS 100
 #define DEBUG 0
 
-int maxTokens = 100;
-int isDynamicToken[100];
+int isDynamicToken[MAX_TOKENS];
 int lastExitStatus;
 
 // Function prototypes
@@ -34,7 +34,7 @@ void tokenize(char *command, char *tokens[], int *numTokens) {
     *numTokens = 0;
 
     token = strtok(command, " \t\n");
-    while (token != NULL && *numTokens < maxTokens - 1) {
+    while (token != NULL && *numTokens < MAX_TOKENS - 1) {
         tokens[*numTokens] = token;
         isDynamicToken[*numTokens] = 0;  // Mark as not dynamically allocated
         (*numTokens)++;
@@ -44,18 +44,18 @@ void tokenize(char *command, char *tokens[], int *numTokens) {
 }
 
 void processCommand(char *command) {
-    char *prevTokens[maxTokens];
-    int prevIsDynamicToken[maxTokens];
+    static char *prevTokens[MAX_TOKENS];
+    static int prevIsDynamicToken[MAX_TOKENS];
 
     // Free memory from the previous command
-    for (int i = 0; i < maxTokens; ++i) {
+    for (int i = 0; i < MAX_TOKENS; ++i) {
         if (prevIsDynamicToken[i] && prevTokens[i] != NULL) {
             free(prevTokens[i]);
             prevTokens[i] = NULL;
         }
     }
 
-    char *tokens[maxTokens];
+    char *tokens[MAX_TOKENS];
     int numTokens;
     memset(isDynamicToken, 0, sizeof(isDynamicToken)); // Reset dynamic token flags
 
@@ -81,12 +81,7 @@ void processCommand(char *command) {
 
     if(strcmp(tokens[0], "then") == 0){
         if(lastExitStatus == EXIT_SUCCESS){
-            for(int i = 1; i < maxTokens; i++){
-                if(DEBUG) printf("tokens %d, %s\n", i, tokens[i]);
-                tokens[i-1] = tokens[i];
-                maxTokens --;
-                numTokens --;
-            }
+            shiftTokens(tokens);
         }else{
             exit(EXIT_FAILURE);
         }
@@ -94,12 +89,7 @@ void processCommand(char *command) {
 
     if(strcmp(tokens[0], "else") == 0){
         if(lastExitStatus != EXIT_SUCCESS){
-            for(int i = 1; i < maxTokens; i++){
-                if(DEBUG) printf("tokens %d, %s\n", i, tokens[i]);
-                tokens[i-1] = tokens[i];
-                numTokens --;
-                maxTokens --;
-            }
+            shiftTokens(tokens);
         }else{
             exit(EXIT_FAILURE);
         }
@@ -111,8 +101,8 @@ void processCommand(char *command) {
     expandWildcards(tokens, &numTokens);
 
     // Check for pipes
-    char *leftCommand[maxTokens];
-    char *rightCommand[maxTokens];
+    char *leftCommand[MAX_TOKENS];
+    char *rightCommand[MAX_TOKENS];
     int foundPipe = 0;
     int i, j = 0;
 
@@ -152,7 +142,7 @@ void processCommand(char *command) {
     memset(isDynamicToken, 0, sizeof(isDynamicToken)); // Reset current flags
 
     // Clear current command tokens to prevent double-free
-    memset(tokens, 0, sizeof(tokens[0]) * maxTokens);
+    memset(tokens, 0, sizeof(tokens[0]) * MAX_TOKENS);
 }
 
 
@@ -228,7 +218,7 @@ int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
 void handleRedirectionAndExecute(char *tokens[], int numTokens) {
     if(DEBUG) printf("Beginnging handleRedirection, numTokens = %d\n", numTokens);
     int inRedirect = -1, outRedirect = -1; // Indices of redirection tokens if found
-    char *command[maxTokens];
+    char *command[MAX_TOKENS];
     int commandLength = 0;
 
     for (int i = 0; i < numTokens; i++) {
@@ -429,7 +419,7 @@ void executeExternalCommand(char *tokens[], int numTokens) {
 void expandWildcards(char *tokens[], int *numTokens) {
     glob_t globbuf;
     int i, j;
-    char *newTokens[maxTokens];
+    char *newTokens[MAX_TOKENS];
     int newNumTokens = 0;
 
     globbuf.gl_pathc = 0;
@@ -457,7 +447,7 @@ void expandWildcards(char *tokens[], int *numTokens) {
     }
 
     *numTokens = newNumTokens;
-    memcpy(tokens, newTokens, sizeof(char*) * maxTokens);
+    memcpy(tokens, newTokens, sizeof(char*) * MAX_TOKENS);
     
     globfree(&globbuf);
 }
@@ -471,6 +461,15 @@ void freeDynamicTokens(char *tokens[]) {
             tokens[i] = NULL;
         }
     }
+}
+
+void shiftTokens(char *tokens[]){
+    char *newTokens[MAX_TOKENS - 1];
+    for(int i = 0; i< MAX_TOKENS -1; i++){
+        newTokens[i] = tokens[i+1];
+    }
+
+    tokens = newTokens;
 }
 
 
