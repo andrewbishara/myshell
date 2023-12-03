@@ -81,10 +81,11 @@ void processCommand(char *command) {
 
     if(strcmp(tokens[0], "then") == 0){
         if(lastExitStatus == EXIT_SUCCESS){
-            for(int i = 1; i <= MAX_TOKENS; i++){
+            for(int i = 1; i < MAX_TOKENS; i++){
                 if(DEBUG) printf("tokens %d, %s\n", i, tokens[i]);
                 tokens[i-1] = tokens[i];
                 numTokens --;
+                tokens[numTokens] = NULL;
             }
         }else{
             exit(EXIT_FAILURE);
@@ -93,10 +94,11 @@ void processCommand(char *command) {
 
     if(strcmp(tokens[0], "else") == 0){
         if(lastExitStatus != EXIT_SUCCESS){
-            for(int i = 1; i <= MAX_TOKENS; i++){
+            for(int i = 1; i < MAX_TOKENS; i++){
                 if(DEBUG) printf("tokens %d, %s\n", i, tokens[i]);
                 tokens[i-1] = tokens[i];
                 numTokens --;
+                tokens[numTokens] = NULL;
             }
         }else{
             exit(EXIT_FAILURE);
