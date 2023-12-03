@@ -425,7 +425,7 @@ void executeExternalCommand(char *tokens[], int numTokens) {
 void expandWildcards(char *tokens[], int *numTokens) {
     glob_t globbuf;
     int i, j;
-    char *newTokens[MAX_TOKENS];
+    char *newTokens[*numTokens];
     int newNumTokens = 0;
 
     globbuf.gl_pathc = 0;
