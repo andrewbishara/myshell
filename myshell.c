@@ -73,7 +73,7 @@ void processCommand(char *command) {
     // Expand wildcards in tokens
     expandWildcards(tokens, &numTokens); 
 
-    // First check for pipes
+    // Check for pipes
     char *leftCommand[MAX_TOKENS];
     char *rightCommand[MAX_TOKENS];
     int foundPipe = 0;
@@ -82,8 +82,8 @@ void processCommand(char *command) {
     for (i = 0; i < numTokens; i++) {
         if (strcmp(tokens[i], "|") == 0) {
             foundPipe = 1;
-            leftCommand[i] = NULL; // Null-terminate left command
-            i++; // Skip pipe token
+            leftCommand[i] = NULL;
+            i++;
             break;
         }
         leftCommand[i] = tokens[i];
@@ -93,10 +93,10 @@ void processCommand(char *command) {
         for (; i < numTokens; i++) {
             rightCommand[j++] = tokens[i];
         }
-        rightCommand[j] = NULL; // Null-terminate right command
+        rightCommand[j] = NULL;
 
         createAndExecutePipe(leftCommand, rightCommand);
-        return; // Return after handling the pipe
+        return;
     }
 
     // If no pipe is found, handle as built-in or external command
@@ -106,6 +106,16 @@ void processCommand(char *command) {
         // If not a built-in command, handle redirection and execute
         handleRedirectionAndExecute(tokens, numTokens);
     }
+    
+     // After processing the command, free any dynamically allocated tokens
+    for (int i = 0; i < numTokens; ++i) {
+        if (isDynamicToken[i]) {
+            free(tokens[i]);
+        }
+    }
+    
+    // Reset isDynamicToken for the next command
+    memset(isDynamicToken, 0, sizeof(isDynamicToken));
     
     // Save tokens for the next command
     memcpy(prevTokens, tokens, sizeof(tokens[0]) * numTokens);
@@ -133,7 +143,12 @@ int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
         dup2(pipefd[1], STDOUT_FILENO); // Redirect stdout to write end of pipe
         close(pipefd[1]);
 
-        execv(leftCommand[0], leftCommand);
+        char fullPath[MAX_COMMAND_LENGTH];
+        if (!findCommandPath(leftCommand[0], fullPath)) {
+            fprintf(stderr, "%s: command not found\n", leftCommand[0]);
+            exit(EXIT_FAILURE);
+        }
+        execv(fullPath, leftCommand);
         perror("execv");
         exit(EXIT_FAILURE);
     }
@@ -150,7 +165,12 @@ int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
         dup2(pipefd[0], STDIN_FILENO); // Redirect stdin to read end of pipe
         close(pipefd[0]);
 
-        execv(rightCommand[0], rightCommand);
+        char fullPath[MAX_COMMAND_LENGTH];
+        if (!findCommandPath(rightCommand[0], fullPath)) {
+            fprintf(stderr, "%s: command not found\n", rightCommand[0]);
+            exit(EXIT_FAILURE);
+        }
+        execv(fullPath, rightCommand);
         perror("execv");
         exit(EXIT_FAILURE);
     }
@@ -163,6 +183,7 @@ int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
 
     return 0;
 }
+
 
 void handleRedirectionAndExecute(char *tokens[], int numTokens) {
     if(DEBUG) printf("Beginnging handleRedirection, numTokens = %d\n", numTokens);
