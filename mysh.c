@@ -26,6 +26,7 @@ int findCommandPath(char *command, char *fullPath);
 void executeExternalCommand(char *tokens[], int numTokens);
 void expandWildcards(char *tokens[], int *numTokens);
 char* custom_strdup(const char* s);
+void freeDynamicTokens(char *tokens[]);
 
 void tokenize(char *command, char *tokens[], int *numTokens) {
     char *token;
@@ -42,12 +43,12 @@ void tokenize(char *command, char *tokens[], int *numTokens) {
 }
 
 void processCommand(char *command) {
-    static char *prevTokens[MAX_TOKENS] = {NULL}; // To track previous tokens
-    static int prevNumTokens = 0; // Number of tokens in previous command
+    static char *prevTokens[MAX_TOKENS];
+    static int prevIsDynamicToken[MAX_TOKENS];
 
     // Free memory from the previous command
-    for (int i = 0; i < prevNumTokens; ++i) {
-        if (prevTokens[i] != NULL) {
+    for (int i = 0; i < MAX_TOKENS; ++i) {
+        if (prevIsDynamicToken[i] && prevTokens[i] != NULL) {
             free(prevTokens[i]);
             prevTokens[i] = NULL;
         }
@@ -55,6 +56,7 @@ void processCommand(char *command) {
 
     char *tokens[MAX_TOKENS];
     int numTokens;
+    memset(isDynamicToken, 0, sizeof(isDynamicToken)); // Reset dynamic token flags
 
     // Tokenize the input command
     tokenize(command, tokens, &numTokens);
@@ -66,14 +68,20 @@ void processCommand(char *command) {
 
     // Check for the exit command
     if (strcmp(tokens[0], "exit") == 0) {
+        // Free dynamically allocated tokens before exiting
+        for (int i = 0; i < numTokens; ++i) {
+            if (isDynamicToken[i]) {
+                free(tokens[i]);
+            }
+        }
         printf("Exiting...\n");
         exit(EXIT_SUCCESS); // Exit the program
     }
 
     // Expand wildcards in tokens
-    expandWildcards(tokens, &numTokens); 
+    expandWildcards(tokens, &numTokens);
 
-    // First check for pipes
+    // Check for pipes
     char *leftCommand[MAX_TOKENS];
     char *rightCommand[MAX_TOKENS];
     int foundPipe = 0;
@@ -82,8 +90,8 @@ void processCommand(char *command) {
     for (i = 0; i < numTokens; i++) {
         if (strcmp(tokens[i], "|") == 0) {
             foundPipe = 1;
-            leftCommand[i] = NULL; // Null-terminate left command
-            i++; // Skip pipe token
+            leftCommand[i] = NULL;
+            i++;
             break;
         }
         leftCommand[i] = tokens[i];
@@ -93,10 +101,10 @@ void processCommand(char *command) {
         for (; i < numTokens; i++) {
             rightCommand[j++] = tokens[i];
         }
-        rightCommand[j] = NULL; // Null-terminate right command
+        rightCommand[j] = NULL;
 
         createAndExecutePipe(leftCommand, rightCommand);
-        return; // Return after handling the pipe
+        return;
     }
 
     // If no pipe is found, handle as built-in or external command
@@ -107,9 +115,15 @@ void processCommand(char *command) {
         handleRedirectionAndExecute(tokens, numTokens);
     }
     
-    // Save tokens for the next command
-    memcpy(prevTokens, tokens, sizeof(tokens[0]) * numTokens);
-    prevNumTokens = numTokens;
+ // Handle memory and flags for next iteration
+    for (int i = 0; i < numTokens; ++i) {
+        prevTokens[i] = tokens[i]; // Transfer ownership
+        prevIsDynamicToken[i] = isDynamicToken[i]; // Transfer flag status
+    }
+    memset(isDynamicToken, 0, sizeof(isDynamicToken)); // Reset current flags
+
+    // Clear current command tokens to prevent double-free
+    memset(tokens, 0, sizeof(tokens[0]) * MAX_TOKENS);
 }
 
 
@@ -136,9 +150,8 @@ int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
         char fullPath[MAX_COMMAND_LENGTH];
         if (!findCommandPath(leftCommand[0], fullPath)) {
             fprintf(stderr, "%s: command not found\n", leftCommand[0]);
-            return -1;
+            exit(EXIT_FAILURE);
         }
-        if(DEBUG) printf("executing first child process, path is %s", fullPath);
         execv(fullPath, leftCommand);
         perror("execv");
         exit(EXIT_FAILURE);
@@ -159,9 +172,8 @@ int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
         char fullPath[MAX_COMMAND_LENGTH];
         if (!findCommandPath(rightCommand[0], fullPath)) {
             fprintf(stderr, "%s: command not found\n", rightCommand[0]);
-            return -1;
+            exit(EXIT_FAILURE);
         }
-        if(DEBUG) printf("executing second child process, path is %s", fullPath);
         execv(fullPath, rightCommand);
         perror("execv");
         exit(EXIT_FAILURE);
@@ -175,6 +187,9 @@ int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
 
     return 0;
 }
+
+
+
 
 void handleRedirectionAndExecute(char *tokens[], int numTokens) {
     if(DEBUG) printf("Beginnging handleRedirection, numTokens = %d\n", numTokens);
@@ -380,33 +395,41 @@ void expandWildcards(char *tokens[], int *numTokens) {
     globbuf.gl_offs = 0;
 
     for (i = 0; i < *numTokens; i++) {
+        // Check if token contains a wildcard
         if (strchr(tokens[i], '*') != NULL) {
             int flags = (newNumTokens == 0 ? GLOB_NOCHECK : GLOB_APPEND | GLOB_NOCHECK);
             if (glob(tokens[i], flags, NULL, &globbuf) != 0) {
                 continue;
             }
 
-            if (globbuf.gl_pathc == 0) {
-                newTokens[newNumTokens++] = custom_strdup(tokens[i]);
-            } else {
-                for (j = 0; j < globbuf.gl_pathc; j++) {
-                    newTokens[newNumTokens++] = custom_strdup(globbuf.gl_pathv[j]);
-                }
+            for (j = 0; j < globbuf.gl_pathc; j++) {
+                newTokens[newNumTokens] = custom_strdup(globbuf.gl_pathv[j]);
+                isDynamicToken[newNumTokens] = 1;
+                newNumTokens++;
             }
         } else {
-            newTokens[newNumTokens++] = custom_strdup(tokens[i]);
+            newTokens[newNumTokens] = tokens[i];
+            isDynamicToken[newNumTokens] = 0;
+            newNumTokens++;
         }
     }
 
-    // Replace original tokens with expanded tokens
-    for (i = 0; i < newNumTokens; i++) {
-        tokens[i] = newTokens[i];
-    }
     *numTokens = newNumTokens;
-
+    memcpy(tokens, newTokens, sizeof(char*) * MAX_TOKENS);
+    
     globfree(&globbuf);
 }
 
+
+// Helper function to free dynamically allocated tokens
+void freeDynamicTokens(char *tokens[]) {
+    for (int i = 0; tokens[i] != NULL; i++) {
+        if (isDynamicToken[i]) {
+            free(tokens[i]);
+            tokens[i] = NULL;
+        }
+    }
+}
 
 
 
