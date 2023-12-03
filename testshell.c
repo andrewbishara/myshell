@@ -84,6 +84,7 @@ void processCommand(char *command) {
             for(int i = 1; i < MAX_TOKENS; i++){
                 if(DEBUG) printf("tokens %d, %s", i, tokens[i]);
                 tokens[i-1] = tokens[i];
+                numTokens --;
             }
         }else{
             exit(EXIT_FAILURE);
@@ -95,6 +96,7 @@ void processCommand(char *command) {
             for(int i = 1; i < MAX_TOKENS; i++){
                 if(DEBUG) printf("tokens %d, %s", i, tokens[i]);
                 tokens[i-1] = tokens[i];
+                numTokens --;
             }
         }else{
             exit(EXIT_FAILURE);
@@ -425,7 +427,7 @@ void executeExternalCommand(char *tokens[], int numTokens) {
 void expandWildcards(char *tokens[], int *numTokens) {
     glob_t globbuf;
     int i, j;
-    char *newTokens[*numTokens];
+    char *newTokens[MAX_TOKENS];
     int newNumTokens = 0;
 
     globbuf.gl_pathc = 0;
