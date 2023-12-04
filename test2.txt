@@ -1,0 +1,4 @@
+./testwrite | ./testread
+then ls *.c
+else ls
+exit

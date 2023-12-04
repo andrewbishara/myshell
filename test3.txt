@@ -1,0 +1,6 @@
+ls *.c | sort > testfile.txt
+cat testfile.txt
+ls -l | grep .txt > testfile.txt
+cat testfile.txt
+cat < testfile.txt | grep keyword > filtered_output.txt
+exit
