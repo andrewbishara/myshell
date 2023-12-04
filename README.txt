@@ -1,13 +1,2 @@
-1. Tokenization and Command Processing: The program starts by breaking down user input into tokens and then processing these commands. This involves handling different scenarios like empty commands, exit commands, and conditional execution based on the previous command's exit status.
-
-2. Piping and Redirection: A feature of the shell is its ability to handle pipes (`|`) and redirections (`<`, `>`). This includes the ability to handle complex commands where output from one command is piped into another and potentially redirected into a file.
-
-3. Wildcard Expansion: Our shell supports wildcard expansion using `glob`, which allows commands like `ls *.txt` to work as expected.
-
-4. Executing Built-in and External Commands: The shell distinguishes between built-in commands (like `cd`, `pwd`, `which`) and external commands, executing them appropriately.
-
-5. Dynamic Memory Management: The program carefully manages memory, especially when dealing with dynamically allocated tokens resulting from wildcard expansion, ensuring there are no memory leaks.
-
-6. Custom Functions: The `createAndExecutePipeWithRedirection` function is a testament to the shell's advanced capabilities, managing piping combined with output redirection efficiently.
-
-7. Interactive and Batch Modes: Our shell operates in both interactive and batch modes, offering flexibility in how commands are entered and executed.
+ProcessCommand Function:
+  -> The function interprets and executes user commands. It begins by tokenizing the input command into individual words or tokens, which are then analyzed to determine the nature of the command. This function handles various scenarios, including empty commands, exit commands, and conditional execution based on the outcome of the previous command. It also manages wildcard expansion, dynamically adapting the command tokens to match filenames and other patterns in the file system. The function intelligently identifies and separates piping and redirection elements within the command. For commands involving pipes, it delegates the execution to createAndExecutePipe or createAndExecutePipeWithRedirection, depending on whether output redirection is also involved. For commands without pipes, it handles potential redirections and executes either built-in commands (like `cd`, `pwd`, `which`) or external commands. The function also carefully manages memory, particularly for dynamically allocated tokens, ensuring robust and leak-free execution. In essence, `processCommand` acts as the command interpreter and executor, translating user input into actions and delegating complex tasks to specialized sub-functions within the shell program.
