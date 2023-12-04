@@ -6,7 +6,6 @@
 #include <sys/wait.h>
 #include <glob.h>
 
-#define _POSIX_C_SOURCE 200809L
 #define MAX_COMMAND_LENGTH 1024
 #define MAX_TOKENS 100
 #define DEBUG 0
