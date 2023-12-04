@@ -6,17 +6,17 @@
 #include <sys/wait.h>
 #include <glob.h>
 
-#define _POSIX_C_SOURCE 200809L
 #define MAX_COMMAND_LENGTH 1024
 #define MAX_TOKENS 100
 #define DEBUG 0
 
 int isDynamicToken[MAX_TOKENS];
+int lastExitStatus;
 
 // Function prototypes
 void executeBuiltIn(char *tokens[], int numTokens);
 void executeWhich(const char *command);
-void handleRedirectionAndExecute(char *tokens[], int numTokens);
+int handleRedirectionAndExecute(char *command[], const char *outputFile);
 int createAndExecutePipe(char *leftCommand[], char *rightCommand[]);
 void processCommand(char *command);
 void interactiveMode();
@@ -27,7 +27,10 @@ void executeExternalCommand(char *tokens[], int numTokens);
 void expandWildcards(char *tokens[], int *numTokens);
 char* custom_strdup(const char* s);
 void freeDynamicTokens(char *tokens[]);
+void shiftTokens(char *tokens[]);
+int createAndExecutePipeWithRedirection(char *leftCommand[], char *rightCommand[], const char *outputFile);
 
+//Takes inputed command, seperates it into tokens, inserts them into given array 
 void tokenize(char *command, char *tokens[], int *numTokens) {
     char *token;
     *numTokens = 0;
@@ -42,6 +45,7 @@ void tokenize(char *command, char *tokens[], int *numTokens) {
     tokens[*numTokens] = NULL; // Null-terminate the list of tokens
 }
 
+//Driver function, handles all cases with use of helper functions
 void processCommand(char *command) {
     static char *prevTokens[MAX_TOKENS];
     static int prevIsDynamicToken[MAX_TOKENS];
@@ -61,72 +65,77 @@ void processCommand(char *command) {
     // Tokenize the input command
     tokenize(command, tokens, &numTokens);
 
-    // Handle the case of an empty command
-    if (numTokens == 0) {
-        return; // Nothing to do for an empty command
-    }
+    if (numTokens == 0) return; // Handle empty command
 
     // Check for the exit command
     if (strcmp(tokens[0], "exit") == 0) {
-        // Free dynamically allocated tokens before exiting
-        for (int i = 0; i < numTokens; ++i) {
-            if (isDynamicToken[i]) {
-                free(tokens[i]);
-            }
-        }
         printf("Exiting...\n");
         exit(EXIT_SUCCESS); // Exit the program
+    }
+
+    // Conditional execution handling
+    if (strcmp(tokens[0], "then") == 0 && lastExitStatus != 0) {
+        return; // Skip execution if last command failed
+    }
+    if (strcmp(tokens[0], "else") == 0 && lastExitStatus == 0) {
+        return; // Skip execution if last command succeeded
     }
 
     // Expand wildcards in tokens
     expandWildcards(tokens, &numTokens);
 
-    // Check for pipes
+    // Handle pipes and redirections
     char *leftCommand[MAX_TOKENS];
     char *rightCommand[MAX_TOKENS];
-    int foundPipe = 0;
-    int i, j = 0;
+    char *outputFile = NULL;
+    int pipeFound = 0, redirectFound = 0;
+    int leftNumTokens = 0, rightNumTokens = 0;
 
-    for (i = 0; i < numTokens; i++) {
-        if (strcmp(tokens[i], "|") == 0) {
-            foundPipe = 1;
-            leftCommand[i] = NULL;
-            i++;
-            break;
-        }
-        leftCommand[i] = tokens[i];
-    }
-
-    if (foundPipe) {
-        for (; i < numTokens; i++) {
-            rightCommand[j++] = tokens[i];
-        }
-        rightCommand[j] = NULL;
-
-        createAndExecutePipe(leftCommand, rightCommand);
-        return;
-    }
-
-    // If no pipe is found, handle as built-in or external command
-    if (strcmp(tokens[0], "cd") == 0 || strcmp(tokens[0], "pwd") == 0 || strcmp(tokens[0], "which") == 0) {
-        executeBuiltIn(tokens, numTokens);
-    } else {
-        // If not a built-in command, handle redirection and execute
-        handleRedirectionAndExecute(tokens, numTokens);
-    }
-    
- // Handle memory and flags for next iteration
     for (int i = 0; i < numTokens; ++i) {
-        prevTokens[i] = tokens[i]; // Transfer ownership
-        prevIsDynamicToken[i] = isDynamicToken[i]; // Transfer flag status
-    }
-    memset(isDynamicToken, 0, sizeof(isDynamicToken)); // Reset current flags
+        if (strcmp(tokens[i], "|") == 0) {
+            pipeFound = 1;
+            leftCommand[leftNumTokens] = NULL;
+            continue;
+        }
 
-    // Clear current command tokens to prevent double-free
-    memset(tokens, 0, sizeof(tokens[0]) * MAX_TOKENS);
+        if (strcmp(tokens[i], ">") == 0) {
+            redirectFound = 1;
+            outputFile = tokens[++i]; // Assume next token is the file name
+            continue;
+        }
+
+        if (!pipeFound) {
+            leftCommand[leftNumTokens++] = tokens[i];
+        } else {
+            rightCommand[rightNumTokens++] = tokens[i];
+        }
+    }
+
+    if (pipeFound) {
+        rightCommand[rightNumTokens] = NULL;
+        // Handle piping with redirection if needed
+        if (redirectFound) {
+            lastExitStatus = createAndExecutePipeWithRedirection(leftCommand, rightCommand, outputFile);
+        } else {
+            lastExitStatus = createAndExecutePipe(leftCommand, rightCommand);
+        }
+    } else {
+        leftCommand[leftNumTokens] = NULL;
+        // Handle single command with or without redirection
+        if (redirectFound) {
+            lastExitStatus = handleRedirectionAndExecute(leftCommand, outputFile);
+        } else {
+            lastExitStatus = handleRedirectionAndExecute(leftCommand, NULL);
+        }
+    }
+
+    // Clear tokens and flags for next iteration
+    memset(prevTokens, 0, sizeof(prevTokens));
+    memset(prevIsDynamicToken, 0, sizeof(prevIsDynamicToken));
 }
 
-
+//Helper function to execute any commands including pipes 
+// Returns exit status of ran program 
 int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
     if(DEBUG) printf("Beginning Pipe creation\n");
     int pipefd[2];
@@ -135,6 +144,7 @@ int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
         return -1;
     }
 
+    int exitStatus = 0;
     pid_t pid1 = fork();
     if (pid1 == -1) {
         perror("fork");
@@ -182,46 +192,131 @@ int createAndExecutePipe(char *leftCommand[], char *rightCommand[]) {
     // Parent process
     close(pipefd[0]);
     close(pipefd[1]);
-    waitpid(pid1, NULL, 0);
-    waitpid(pid2, NULL, 0);
 
-    return 0;
+    int status1, status2;
+    waitpid(pid1, &status1, 0);
+    waitpid(pid2, &status2, 0);
+
+    if (WIFEXITED(status1) && WEXITSTATUS(status1) != 0) {
+        exitStatus = WEXITSTATUS(status1);
+    }
+    if (WIFEXITED(status2) && WEXITSTATUS(status2) != 0) {
+        exitStatus = WEXITSTATUS(status2);
+    }
+
+    return exitStatus;
 }
 
+//Helper function to execute commands that have both pipes and redirections
+//Returns exit status of the executed program
+int createAndExecutePipeWithRedirection(char *leftCommand[], char *rightCommand[], const char *outputFile) {
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
+        perror("pipe");
+        return -1;
+    }
 
+    pid_t pid1 = fork();
+    if (pid1 == -1) {
+        perror("fork");
+        close(pipefd[0]);
+        close(pipefd[1]);
+        return -1;
+    }
 
+    if (pid1 == 0) { // Child process for leftCommand
+        // Redirect STDOUT to the write end of the pipe
+        close(pipefd[0]); // Close unused read end
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(pipefd[1]);
 
-void handleRedirectionAndExecute(char *tokens[], int numTokens) {
-    if(DEBUG) printf("Beginnging handleRedirection, numTokens = %d\n", numTokens);
-    int inRedirect = -1, outRedirect = -1; // Indices of redirection tokens if found
-    char *command[MAX_TOKENS];
+        char fullPath[MAX_COMMAND_LENGTH];
+        if (!findCommandPath(leftCommand[0], fullPath)) {
+            fprintf(stderr, "%s: command not found\n", leftCommand[0]);
+            exit(EXIT_FAILURE);
+        }
+        execv(fullPath, leftCommand);
+        perror("execv");
+        exit(EXIT_FAILURE);
+    }
+
+    pid_t pid2 = fork();
+    if (pid2 == -1) {
+        perror("fork");
+        close(pipefd[0]);
+        close(pipefd[1]);
+        return -1;
+    }
+
+    if (pid2 == 0) { // Child process for rightCommand
+        // Redirect STDIN to the read end of the pipe
+        close(pipefd[1]); // Close unused write end
+        dup2(pipefd[0], STDIN_FILENO);
+        close(pipefd[0]);
+
+        // Redirect STDOUT to the output file
+        int fdOut = open(outputFile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fdOut == -1) {
+            perror("open");
+            exit(EXIT_FAILURE);
+        }
+        dup2(fdOut, STDOUT_FILENO);
+        close(fdOut);
+
+        char fullPath[MAX_COMMAND_LENGTH];
+        if (!findCommandPath(rightCommand[0], fullPath)) {
+            fprintf(stderr, "%s: command not found\n", rightCommand[0]);
+            exit(EXIT_FAILURE);
+        }
+        execv(fullPath, rightCommand);
+        perror("execv");
+        exit(EXIT_FAILURE);
+    }
+
+    // Parent process
+    close(pipefd[0]);
+    close(pipefd[1]);
+
+    int status1, status2;
+    waitpid(pid1, &status1, 0);
+    waitpid(pid2, &status2, 0);
+
+    // Return the exit status of the last command in the pipe
+    if (WIFEXITED(status2)) {
+        return WEXITSTATUS(status2);
+    } else {
+        return -1;
+    }
+}
+
+//Helper function to execute any command including redirections
+// Returns exit status of the executed program
+int handleRedirectionAndExecute(char *command[], const char *outputFile) {
+    if(DEBUG) printf("Beginning handleRedirection\n");
+
+    int inRedirect = -1; // Index of input redirection if found
+    int outRedirect = outputFile ? 1 : -1; // Set to 1 if output redirection is present
     int commandLength = 0;
 
-    for (int i = 0; i < numTokens; i++) {
-        if (strcmp(tokens[i], "<") == 0) {
-            inRedirect = i + 1; // Next token is the input file
-            i++; // Skip the filename token
-        } else if (strcmp(tokens[i], ">") == 0) {
-            outRedirect = i + 1; // Next token is the output file
-            i++; // Skip the filename token
-        } else {
-            command[commandLength++] = tokens[i];
+    // Identifying input redirection
+    while (command[commandLength] != NULL) {
+        if (strcmp(command[commandLength], "<") == 0) {
+            inRedirect = commandLength + 1;
+            command[commandLength] = NULL; // Terminate the command array here
+            break; // Stop processing further as we hit redirection
         }
+        commandLength++;
     }
-    command[commandLength] = NULL; // Null-terminate the command
 
     pid_t pid = fork();
     if (pid == -1) {
         perror("fork");
-        return;
+        return -1;
     }
 
-    if (pid == 0) {
-        // Child process
-        
+    if (pid == 0) { // Child process
         if (inRedirect != -1) {
-            if(DEBUG) printf("In child process, opening %s\n", tokens[inRedirect]);
-            int fdIn = open(tokens[inRedirect], O_RDONLY);
+            int fdIn = open(command[inRedirect], O_RDONLY);
             if (fdIn == -1) {
                 perror("open");
                 exit(EXIT_FAILURE);
@@ -231,8 +326,7 @@ void handleRedirectionAndExecute(char *tokens[], int numTokens) {
         }
 
         if (outRedirect != -1) {
-            if(DEBUG) printf("In child process, opening %s\n", tokens[outRedirect]);
-            int fdOut = open(tokens[outRedirect], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            int fdOut = open(outputFile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
             if (fdOut == -1) {
                 perror("open");
                 exit(EXIT_FAILURE);
@@ -242,22 +336,28 @@ void handleRedirectionAndExecute(char *tokens[], int numTokens) {
         }
 
         char fullPath[MAX_COMMAND_LENGTH];
-        if (!findCommandPath(tokens[0], fullPath)) {
-            fprintf(stderr, "%s: command not found\n", tokens[0]);
-            return;
+        if (!findCommandPath(command[0], fullPath)) {
+            fprintf(stderr, "%s: command not found\n", command[0]);
+            exit(EXIT_FAILURE);
         }
 
         if(DEBUG) printf("Executing %s\n", fullPath);
         execv(fullPath, command);
         perror("execv");
         exit(EXIT_FAILURE);
-    } else {
-        // Parent process
+    } else { // Parent process
         int status;
         waitpid(pid, &status, 0);
+        if (WIFEXITED(status)) {
+            return WEXITSTATUS(status);
+        } else {
+            return -1; // Or some other error code
+        }
     }
 }
 
+// Main loop for running interactive mode
+// Uses processCommand() as driving function
 void interactiveMode() {
     char command[MAX_COMMAND_LENGTH];
 
@@ -273,6 +373,8 @@ void interactiveMode() {
     printf("mysh: exiting\n");
 }
 
+// Main loop for running batch mode
+// Uses processCommand() as driving function
 void batchMode(const char *filename) {
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
@@ -289,6 +391,7 @@ void batchMode(const char *filename) {
     fclose(file);
 }
 
+//runs cd, pwd, and which commands (Built ins)
 void executeBuiltIn(char *tokens[], int numTokens) {
     if(DEBUG) printf("Beginning executeBuiltIn, numTokens = %d\n", numTokens);
     if (strcmp(tokens[0], "cd") == 0) {
@@ -313,6 +416,7 @@ void executeBuiltIn(char *tokens[], int numTokens) {
     }
 }
 
+// Helper function that executes the which command
 void executeWhich(const char *command) {
     if(DEBUG) printf("Beginning executeWhich, command = %s\n", command);
     char *directories[] = {"/usr/local/bin", "/usr/bin", "/bin"};
@@ -333,6 +437,8 @@ void executeWhich(const char *command) {
     }
 }
 
+//takes a program name, constructs the path to it and sets fullPath equal to the path
+//Returns 1 if a valid path was built, 0 if not
 int findCommandPath(char *command, char *fullPath) {
     if(DEBUG) printf("Beginning findCommandPath, command = %s, fullPath = %s\n", command, fullPath);
     char *directories[] = {"/usr/local/bin", "/usr/bin", "/bin"};
@@ -355,6 +461,7 @@ int findCommandPath(char *command, char *fullPath) {
     return found;
 }
 
+//Executes any command not built in
 void executeExternalCommand(char *tokens[], int numTokens) {
     if(DEBUG) printf("Beginning executeExternalCommand, numTokens = %d\n", numTokens);
     char fullPath[MAX_COMMAND_LENGTH];
@@ -375,6 +482,7 @@ void executeExternalCommand(char *tokens[], int numTokens) {
         // Child process
         if (execv(fullPath, tokens) == -1) {
             perror("execv");
+            lastExitStatus = EXIT_FAILURE;
             exit(EXIT_FAILURE);
         }
     } else {
@@ -382,8 +490,12 @@ void executeExternalCommand(char *tokens[], int numTokens) {
         int status;
         waitpid(pid, &status, 0);
     }
+
+    lastExitStatus = EXIT_FAILURE;
+    exit(EXIT_SUCCESS);
 }
 
+//Searches if any tokens contain a wildcard, expands them, inserts them into main token array
 void expandWildcards(char *tokens[], int *numTokens) {
     glob_t globbuf;
     int i, j;
@@ -431,8 +543,22 @@ void freeDynamicTokens(char *tokens[]) {
     }
 }
 
+// Helper function to remove first index of tokens array 
+void shiftTokens(char *tokens[]){        
+    char *newTokens[MAX_TOKENS];
+    for(int i = 0; i < MAX_TOKENS - 1; i++){
 
+        if(DEBUG) printf("Previous token %s going into index %d", tokens[i+1], i);
+        newTokens[i] = tokens[i+1];
+    }
 
+    for(int j = 0; j < MAX_TOKENS; j++){
+        tokens[j] = newTokens[j];
+    }
+
+}
+
+//Duplicates given string
 char* custom_strdup(const char* s) {
     char* new_str = malloc(strlen(s) + 1); // +1 for the null terminator
     if (new_str) {
